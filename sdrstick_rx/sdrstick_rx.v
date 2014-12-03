@@ -90,19 +90,20 @@ module sdrstick_rx (
 			case (state)
 				STATE_IDLE: begin
 					write <= 1'b0;
+					led <= 1'b0;
 					if (strobe == 1'b1) begin
 						state <= STATE_WRITE_I;
 					end
 				end
 				STATE_WRITE_I: begin
 					writedata <= {8'b0, i_sample_in};
-					write <= enabled;
+					write <= 1'b1;
 					led <= 1'b1;
 					state <= STATE_WRITE_Q;
 				end
 				STATE_WRITE_Q: begin
 					writedata <= {8'b0, q_sample_in};
-					write <= enabled;
+					write <= 1'b1;
 					led <= 1'b1;
 					state <= STATE_IDLE;
 				end
