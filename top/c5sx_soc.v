@@ -102,11 +102,11 @@ module c5sx_soc(
 
 	//  Input signals from SDRStick HF2
 	input wire [15:0] INA,
-	input wire RAND,
+	output wire RAND,
 	input wire OVFLA,
-	input wire PGA,
-	input wire DITHER,
-	input wire DRV_CLK_OUT_N,
+	output wire PGA,
+	output wire DITHER,
+	output wire DRV_CLK_OUT_N,
 	input wire CLK_122_88MHz,
 	input wire ADC_CLKA
    
@@ -209,6 +209,16 @@ module c5sx_soc(
 		  .sdrstick_rx_0_debug_led_led           (fpga_led_internal[1])
     );
 	 
+	 
+	 
+	 //  Assign hard coded values.  These should eventually be replaced with configuration from the Linux driver
+	 assign PGA = 1'b0;
+	 assign DITHER = 1'b0;
+	 assign RAND = 1'b0;
+	 assign DRV_CLK_OUT_N = 1'b0;
+	 
+	 //  Assign the overflow line to the LED.  This should also have an indication to software as well
+	 assign fpga_led_internal[2] = OVFLA;
 	 
 	 //  Use the LED to monitor the 122MHz clock.  Blink once per second.
 	 reg [31:0] c122_counter = 32'b0;
