@@ -22,8 +22,8 @@ module sdrstick_rx (
 
    localparam pw = 64'd11728124030000000;
 
-	//  Hard code phase word for 10MHz and a 384k sample rate
-	reg [5:0] sample_rate = 6'd5;
+	//  Hard code phase word for 10MHz and a 192k sample rate
+	reg [5:0] sample_rate = 6'd10;
 	reg [31:0] phase_word = pw[56:25];
 	wire [23:0] i_sample_in;
 	reg [31:0] i_sample;
