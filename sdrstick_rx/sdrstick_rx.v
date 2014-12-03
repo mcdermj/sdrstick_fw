@@ -36,6 +36,7 @@ module sdrstick_rx (
 	reg led;
 	
 	reg enabled = 1'b0;
+	reg enabled_122 = 1'b0;
 	
 	assign fifo_write = write;
 	assign fifo_writedata = writedata;
@@ -71,6 +72,11 @@ module sdrstick_rx (
 		end
 	end
 	
+	//  Prepare registers for clock domain crossing
+	always @ (posedge adc_clk) begin
+		enabled_122 <= enabled;
+	end
+	
 	reg [2:0] state = 3'b0;
 	localparam STATE_IDLE = 3'b00;
 	localparam STATE_WRITE_I = 3'b01;
@@ -78,7 +84,7 @@ module sdrstick_rx (
 	
 	//  The data transfer process
 	always @ (posedge adc_clk) begin
-		if (adc_clk_reset == 1'b1) begin
+		if (adc_clk_reset == 1'b1 || enabled_122 == 1'b0) begin
 			state <= STATE_IDLE;
 		end else begin
 			case (state)
