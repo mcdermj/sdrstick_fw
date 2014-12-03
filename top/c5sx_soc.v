@@ -220,6 +220,28 @@ module c5sx_soc(
 	 assign RAND = 1'b0;
 	 assign DRV_CLK_OUT_N = 1'b0;
 	 
+	 // Deal with the attenuator
+	 // Divide the master clock by 16 to get a clock for the attenuator
+	 reg clk_div16 = 1'b0;
+	 reg [3:0] clk_div16_counter = 4'h0;
+	 always @(posedge clk_bot1) begin
+			if(clk_div16_counter == 4'hF) begin
+				clk_div16 <= ~clk_div16;
+				clk_div16_counter = 4'h0;
+			end else begin
+				clk_div16_counter = clk_div16_counter + 1;
+			end
+	 end
+
+	 reg [4:0] no_gain = 5'b0;
+	 Attenuator attn (
+		.clk (clk_div16),
+		.data (no_gain),
+		.ATTN_CLK (RX_SPI_CLK),
+		.ATTN_DATA (RX_SPI_DATA),
+		.ATTN_LE (ATTN_LE)
+	);
+	 
 	 //  Assign the overflow line to the LED.  This should also have an indication to software as well
 	 assign fpga_led_internal[2] = OVFLA;
 	 
