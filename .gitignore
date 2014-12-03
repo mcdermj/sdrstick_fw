@@ -4,7 +4,12 @@ hps_isw_handoff
 incremental_db
 .qsys_edit
 c5_pin_model_dump.txt
+greybox_tmp
+simulation
+transcript
+work
 *.sopcinfo
 *.rbf
 *.bak
 *.qws
+*.swp
