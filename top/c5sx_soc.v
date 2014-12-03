@@ -108,7 +108,10 @@ module c5sx_soc(
 	output wire DITHER,
 	output wire DRV_CLK_OUT_N,
 	input wire CLK_122_88MHz,
-	input wire ADC_CLKA
+	input wire ADC_CLKA,
+	output wire RX_SPI_DATA,
+	output wire RX_SPI_CLK,
+	output wire ATTN_LE
    
 );
     

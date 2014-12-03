@@ -898,12 +898,6 @@ set_global_assignment -name SEARCH_PATH soc_system/synthesis/submodules/
 set_global_assignment -name SEARCH_PATH soc_system/synthesis/submodules/sequencer/
 set_global_assignment -name SEARCH_PATH top/
 set_global_assignment -name TIMEQUEST_MULTICORNER_ANALYSIS ON
-set_global_assignment -name QSYS_FILE soc_system.qsys
-set_global_assignment -name SDC_FILE soc_system_timing.sdc
-set_global_assignment -name QIP_FILE soc_system/synthesis/soc_system.qip
-set_global_assignment -name VERILOG_FILE top/c5sx_soc.v
-set_global_assignment -name VERILOG_FILE top/config_soc.v
-set_global_assignment -name SIGNALTAP_FILE ../stp1.stp
 set_location_assignment PIN_D11 -to RAND
 set_location_assignment PIN_A6 -to OVFLA
 set_location_assignment PIN_A4 -to PGA
@@ -911,4 +905,16 @@ set_location_assignment PIN_B1 -to DITHER
 set_location_assignment PIN_E1 -to DRV_CLK_OUT_N
 set_location_assignment PIN_H15 -to ADC_CLKA
 set_location_assignment PIN_G15 -to CLK_122_88MHz
+set_location_assignment PIN_B6 -to RX_SPI_DATA
+set_location_assignment PIN_D2 -to RX_SPI_CLK
+set_location_assignment PIN_F11 -to ATTN_LE
+set_global_assignment -name VERILOG_FILE attenuator.v
+set_global_assignment -name QSYS_FILE soc_system.qsys
+set_global_assignment -name SDC_FILE soc_system_timing.sdc
+set_global_assignment -name QIP_FILE soc_system/synthesis/soc_system.qip
+set_global_assignment -name VERILOG_FILE top/c5sx_soc.v
+set_global_assignment -name VERILOG_FILE top/config_soc.v
+set_global_assignment -name SIGNALTAP_FILE ../stp1.stp
+set_global_assignment -name MIF_FILE siggen_lookup.mif
+set_global_assignment -name QIP_FILE siggen_table.qip
 set_instance_assignment -name PARTITION_HIERARCHY root_partition -to | -section_id Top
