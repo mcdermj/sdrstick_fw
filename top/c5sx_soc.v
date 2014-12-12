@@ -123,6 +123,13 @@ module c5sx_soc(
 //  assign user_led_fpga = ~fpga_led_internal;
   assign user_led_fpga = fpga_led_internal;
 	 
+	 wire [15:0] signal;
+	 
+	siggen siggen_inst (
+		.clk (ADC_CLKA),
+		.reset (hps_fpga_reset_n),
+		.signal (signal)
+	);
 	 
  
     soc_system u0 (
@@ -208,7 +215,7 @@ module c5sx_soc(
         .adc_clk_reset_reset_n                 (hps_fpga_reset_n),
         .blinker_0_led_export						  (fpga_led_internal[0]),
 		  .hps_0_h2f_reset_reset_n               (hps_fpga_reset_n),
-		  .sdrstick_rx_0_adc_in_data             (INA),
+		  .sdrstick_rx_0_adc_in_data             (signal),
 		  .sdrstick_rx_0_debug_led_led           (fpga_led_internal[1])
     );
 	 
