@@ -13,3 +13,5 @@ work
 *.bak
 *.qws
 *.swp
+hps_sdram_p0_summary.csv
+vsim.wlf
