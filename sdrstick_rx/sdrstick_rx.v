@@ -20,11 +20,9 @@ module sdrstick_rx (
 	output wire                 debug_led
 );
 
-   localparam pw = 64'd11728124030000000;
-
 	//  Hard code phase word for 10MHz and a 192k sample rate
 	reg [5:0] sample_rate = 6'd10;
-	reg [31:0] phase_word = pw[56:25];
+	reg [31:0] phase_word = 32'd2863313051;
 	wire [23:0] i_sample_in;
 	reg [31:0] i_sample;
 	wire [23:0] q_sample_in;
@@ -37,6 +35,7 @@ module sdrstick_rx (
 	
 	reg enabled = 1'b0;
 	reg enabled_122 = 1'b0;
+	reg [31:0] phase_word_122 = 32'd2863313051;
 	
 	assign fifo_write = write;
 	assign fifo_writedata = writedata;
@@ -48,7 +47,7 @@ module sdrstick_rx (
 	receiver rx(
 		.clock(adc_clk),
 		.rate(sample_rate),
-		.frequency(phase_word),
+		.frequency(phase_word_122),
 		.out_strobe(strobe),
 		.in_data(adc_data),
 		.out_data_I(i_sample_in),
@@ -62,12 +61,24 @@ module sdrstick_rx (
 		end else
 		begin
 			if(ctl_write == 1'b1) begin
-				enabled <= ctl_writedata[0];
+				case(ctl_address)
+					3'd0:
+						enabled <= ctl_writedata[0];
+					3'd1:
+						phase_word <= ctl_writedata;
+					default:
+						;
+				endcase
 			end
 			else if(ctl_read == 1'b1) begin
-				// XXX this can probably be represented by a concatenation
-				ctl_readdata[0] <= enabled;
-				ctl_readdata[31:1] <= 31'd0;
+				case(ctl_address)
+					3'd0: 
+						ctl_readdata <= {31'd0, enabled};
+					3'd1:
+						ctl_readdata <= phase_word;
+					default:
+						ctl_readdata <= 32'd0;
+				endcase
 			end
 		end
 	end
@@ -75,6 +86,7 @@ module sdrstick_rx (
 	//  Prepare registers for clock domain crossing
 	always @ (posedge adc_clk) begin
 		enabled_122 <= enabled;
+		phase_word_122 <= phase_word;
 	end
 	
 	reg [2:0] state = 3'b0;
@@ -97,6 +109,7 @@ module sdrstick_rx (
 				end
 				STATE_WRITE_I: begin
 					writedata <= {8'b0, i_sample_in};
+					//writedata <= {8'b0, 24'hABCDEF};
 					write <= 1'b1;
 					led <= 1'b1;
 					state <= STATE_WRITE_Q;
