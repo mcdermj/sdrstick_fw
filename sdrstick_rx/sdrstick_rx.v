@@ -48,11 +48,20 @@ module sdrstick_rx (
 		.clock(adc_clk),
 		.rate(sample_rate),
 		.frequency(phase_word_122),
+		//.frequency(32'd330382110),
 		.out_strobe(strobe),
 		.in_data(adc_data),
 		.out_data_I(i_sample_in),
 		.out_data_Q(q_sample_in)
 	);
+
+	/* counter counter_inst(
+		.clk(adc_clk),
+		.reset(reset),
+		.out_data_i(i_sample_in),
+		.out_data_q(q_sample_in),
+		.strobe(strobe)
+	); */
 	
 	//  The control interface from the CPU
 	always @ (posedge clk) begin
@@ -89,21 +98,26 @@ module sdrstick_rx (
 		phase_word_122 <= phase_word;
 	end
 	
-	reg [2:0] state = 3'b0;
 	localparam STATE_IDLE = 3'b00;
 	localparam STATE_WRITE_I = 3'b01;
 	localparam STATE_WRITE_Q = 3'b10;
-	
+	reg [2:0] state = STATE_IDLE;
+	wire strobe_edge;
+	reg old_strobe;
+
+	assign strobe_edge = strobe & !old_strobe;
+
 	//  The data transfer process
 	always @ (posedge adc_clk) begin
 		if (adc_clk_reset == 1'b1 || enabled_122 == 1'b0) begin
 			state <= STATE_IDLE;
 		end else begin
+			old_strobe <= strobe;	
 			case (state)
 				STATE_IDLE: begin
 					write <= 1'b0;
 					led <= 1'b0;
-					if (strobe == 1'b1) begin
+					if (strobe_edge == 1'b1) begin
 						state <= STATE_WRITE_I;
 					end
 				end
@@ -116,6 +130,7 @@ module sdrstick_rx (
 				end
 				STATE_WRITE_Q: begin
 					writedata <= {8'b0, q_sample_in};
+					//writedata <= 32'b0;
 					write <= 1'b1;
 					led <= 1'b1;
 					state <= STATE_IDLE;

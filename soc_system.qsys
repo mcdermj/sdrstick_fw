@@ -724,7 +724,7 @@
   <parameter name="bitsPerSymbol" value="8" />
   <parameter name="channelWidth" value="8" />
   <parameter name="errorWidth" value="8" />
-  <parameter name="fifoDepth" value="2048" />
+  <parameter name="fifoDepth" value="8192" />
   <parameter name="fifoInputInterfaceOptions" value="AVALONMM_WRITE" />
   <parameter name="fifoOutputInterfaceOptions" value="AVALONMM_READ" />
   <parameter name="showHiddenFeatures" value="false" />

@@ -15,12 +15,10 @@ Boston, MA  02110-1301, USA.
 --------------------------------------------------------------------------------
 */
 
-
 //------------------------------------------------------------------------------
 //           Algorithm by Darrell Harmon modified by Cathy Moss
 //            Code Copyright (c) 2008 Alex Shovkoplyas, VE3NEA
 //------------------------------------------------------------------------------
-
 
 module cordic( clock, frequency, in_data, out_data_I, out_data_Q );
 
@@ -42,11 +40,6 @@ input signed [WF-1:0] frequency;
 input signed [IN_WIDTH-1:0] in_data;
 output signed [WO-1:0] out_data_I;
 output signed [WO-1:0] out_data_Q;
-
-
-
-
-
 
 //------------------------------------------------------------------------------
 //                             arctan table
@@ -89,29 +82,16 @@ assign atan_table[29] = 32'b00000000000000000000000000000011; //3
 assign atan_table[30] = 32'b00000000000000000000000000000001; //1
 assign atan_table[31] = 32'b00000000000000000000000000000001; //1
 
-
-
-
-
-
-
-
 //------------------------------------------------------------------------------
 //                              registers
 //------------------------------------------------------------------------------
 //NCO
-reg [WP-1:0] phase;
-
+reg [WP-1:0] phase = 0;
 
 //stage outputs
 reg signed [WR-1:0] X [0:STG-1];
 reg signed [WR-1:0] Y [0:STG-1];
 reg signed [WZ-1:0] Z [0:STG-1];
-
-
-
-
-
 
 //------------------------------------------------------------------------------
 //                               stage 0
@@ -138,32 +118,26 @@ always @(posedge clock)
   phase <= phase + frequency;
   end
 
-
-
-
-
-
 //------------------------------------------------------------------------------
 //                           stages 1 to STG-1
 //------------------------------------------------------------------------------
 genvar n;
 
-
 generate
   for (n=0; n<=(STG-2); n=n+1)
     begin : stages
     //data from prev stage, shifted
-    wire signed [WR-1:0] X_shr = {{(n+1){X[n][WR-1]}}, X[n][WR-1:n+1]};
-    wire signed [WR-1:0] Y_shr = {{(n+1){Y[n][WR-1]}}, Y[n][WR-1:n+1]};
+    //wire signed [WR-1:0] X_shr = {{(n+1){X[n][WR-1]}}, X[n][WR-1:n+1]};
+    //wire signed [WR-1:0] Y_shr = {{(n+1){Y[n][WR-1]}}, Y[n][WR-1:n+1]};
+    wire signed [WR-1:0] X_shr = X[n] >>> (n + 1) /* synthesis keep */;
+    wire signed [WR-1:0] Y_shr = Y[n] >>> (n + 1) /* synthesis keep */;
 
 
     //rounded arctan
-    wire [WZ-2-n:0] atan = atan_table[n+1][WT-2-n:WT-WZ] + atan_table[n+1][WT-WZ-1];
-
+    wire signed [WZ-2-n:0] atan = atan_table[n+1][WT-2-n:WT-WZ] + atan_table[n+1][WT-WZ-1] /* synthesis keep */;
 
     //the sign of the residual
-    wire Z_sign = Z[n][WZ-1-n];
-
+    wire Z_sign = Z[n][WZ-1-n] /* synthesis keep */;
 
     always @(posedge clock)
       begin
@@ -179,11 +153,6 @@ generate
       end
     end
 endgenerate
-
-
-
-
-
 
 //------------------------------------------------------------------------------
 //                                 output
@@ -210,7 +179,5 @@ generate
     assign out_data_Q = rounded_Q;
     end
 endgenerate
-
-
 
 endmodule

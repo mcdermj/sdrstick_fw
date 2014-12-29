@@ -101,7 +101,7 @@ module c5sx_soc(
 	output [3:0]	user_led_fpga,
 
 	//  Input signals from SDRStick HF2
-	input wire [15:0] INA,
+	input wire signed [15:0] INA,
 	output wire RAND,
 	input wire OVFLA,
 	output wire PGA,
@@ -215,7 +215,7 @@ module c5sx_soc(
         .adc_clk_reset_reset_n                 (hps_fpga_reset_n),
         .blinker_0_led_export						  (fpga_led_internal[0]),
 		  .hps_0_h2f_reset_reset_n               (hps_fpga_reset_n),
-		  .sdrstick_rx_0_adc_in_data             (signal),
+		  .sdrstick_rx_0_adc_in_data             (INA),
 		  .sdrstick_rx_0_debug_led_led           (fpga_led_internal[1])
     );
 	 

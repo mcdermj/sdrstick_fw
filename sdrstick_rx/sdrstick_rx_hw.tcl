@@ -42,21 +42,19 @@ set_fileset_property QUARTUS_SYNTH ENABLE_FILE_OVERWRITE_MODE false
 add_fileset_file cic.v VERILOG PATH cic.v
 add_fileset_file cic_comb.v VERILOG PATH cic_comb.v
 add_fileset_file cic_integrator.v VERILOG PATH cic_integrator.v
-add_fileset_file coefL8A.mif MIF PATH coefL8A.mif
-add_fileset_file coefL8B.mif MIF PATH coefL8B.mif
-add_fileset_file coefL8C.mif MIF PATH coefL8C.mif
-add_fileset_file coefL8D.mif MIF PATH coefL8D.mif
-add_fileset_file coefL8E.mif MIF PATH coefL8E.mif
-add_fileset_file coefL8F.mif MIF PATH coefL8F.mif
-add_fileset_file coefL8G.mif MIF PATH coefL8G.mif
-add_fileset_file coefL8H.mif MIF PATH coefL8H.mif
+add_fileset_file fir_coeffs_rom.hex HEX PATH fir_coeffs_rom.hex
+add_fileset_file fir_coeffs_rom.v VERILOG PATH fir_coeffs_rom.v
+add_fileset_file fir_coeffs.v VERILOG PATH fir_coeffs.v
+add_fileset_file fir_mac.v VERILOG PATH fir_mac.v
+add_fileset_file fir_shiftreg.v VERILOG PATH fir_shiftreg.v
+add_fileset_file fir.v VERILOG PATH fir.v
 add_fileset_file cordic.v VERILOG PATH cordic.v
-add_fileset_file firfilt.v VERILOG PATH firfilt.v
-add_fileset_file firram36.v VERILOG PATH firram36.v
-add_fileset_file firromH.v VERILOG PATH firromH.v
 add_fileset_file receiver.v VERILOG PATH receiver.v
 add_fileset_file varcic.v VERILOG PATH varcic.v
+add_fileset_file mult_24Sx24S.v VERILOG PATH mult_24Sx24S.v
 add_fileset_file sdrstick_rx.v VERILOG PATH sdrstick_rx.v TOP_LEVEL_FILE
+
+add_fileset_file counter.v VERILOG PATH counter.v
 
 
 # 
