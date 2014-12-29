@@ -1,7 +1,7 @@
 module siggen(
 	input clk,
 	input reset,
-	output wire [15:0] signal
+	output wire signed [15:0] signal
 );
 
 reg [3:0] counter = 0;
