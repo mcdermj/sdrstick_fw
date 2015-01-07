@@ -20,25 +20,20 @@ Boston, MA  02110-1301, USA.
 //           Copyright (c) 2008 Alex Shovkoplyas, VE3NEA
 //------------------------------------------------------------------------------
 
+// 2013 Jan 26	- Modified to accept decimation values from 1-40. VK6APH 
 
-
-module varcic( extra_decimation, clock, in_strobe,  out_strobe, in_data, out_data );
-
+module varcic(decimation, clock, in_strobe,  out_strobe, in_data, out_data );
 
   //design parameters
   parameter STAGES = 5;
-  parameter DECIMATION = 320;  
-  parameter IN_WIDTH = 22;
+  parameter MAX_DECIMATION = 40;
+  parameter IN_WIDTH = 18;
+  parameter OUT_WIDTH = 18;
 
-
-  //computed parameters
-  //ACC_WIDTH = IN_WIDTH + Ceil(STAGES * Log2(decimation factor))
-  //OUT_WIDTH = IN_WIDTH + Ceil(Log2(decimation factor) / 2)
-  parameter ACC_WIDTH = 64;
-  parameter OUT_WIDTH = 27;
-
-  //00 = DECIMATION*4, 01 = DECIMATION*2, 10 = DECIMATION
-  input [1:0] extra_decimation;
+  // derived parameters
+  parameter ACC_WIDTH = STAGES * $clog2(MAX_DECIMATION);
+  
+  input [5:0] decimation; 
   
   input clock;
   input in_strobe;
@@ -46,9 +41,6 @@ module varcic( extra_decimation, clock, in_strobe,  out_strobe, in_data, out_dat
 
   input signed [IN_WIDTH-1:0] in_data;
   output reg signed [OUT_WIDTH-1:0] out_data;
-
-
-
 
 
 //------------------------------------------------------------------------------
@@ -61,7 +53,7 @@ initial sample_no = 16'd0;
 always @(posedge clock)
   if (in_strobe)
     begin
-    if (sample_no == ((DECIMATION << (2-extra_decimation))-1))
+    if (sample_no == (decimation - 1))
       begin
       sample_no <= 0;
       out_strobe <= 1;
@@ -75,10 +67,6 @@ always @(posedge clock)
 
   else
     out_strobe <= 0;
-
-
-
-
 
 
 //------------------------------------------------------------------------------
@@ -115,32 +103,25 @@ generate
 endgenerate
 
 
-
-
-
-
-
 //------------------------------------------------------------------------------
 //                            output rounding
 //------------------------------------------------------------------------------
-localparam MSB0 = ACC_WIDTH - 1;            //63
-localparam LSB0 = ACC_WIDTH - OUT_WIDTH;    //41
 
-localparam MSB1 = MSB0 - STAGES;            //58
-localparam LSB1 = LSB0 - STAGES;            //36
+//
+//  Generate a table of msb offsets for each decimation value from 1 to
+//  MAX_DECIMATION
+//
+wire [$clog2(ACC_WIDTH):0] msb [MAX_DECIMATION + 1];
+genvar j;
+generate
+	for(j = 1; j < MAX_DECIMATION + 1; j = j + 1) begin: round_position
+		assign msb[j] = IN_WIDTH + ($clog2(j) * STAGES) - 1 ;
+	end
+endgenerate
 
-localparam MSB2 = MSB1 - STAGES;            //53
-localparam LSB2 = LSB1 - STAGES;            //31
-
-
-always @(posedge clock)
-  case (extra_decimation)
-    0: out_data <= comb_data[STAGES][MSB0:LSB0] + comb_data[STAGES][LSB0-1];
-    1: out_data <= comb_data[STAGES][MSB1:LSB1] + comb_data[STAGES][LSB1-1];
-    2: out_data <= comb_data[STAGES][MSB2:LSB2] + comb_data[STAGES][LSB2-1];
-  endcase
-
-
+//  Round values
+always @(posedge clock) begin
+	out_data <= comb_data[STAGES][msb[decimation] -: OUT_WIDTH] + comb_data[STAGES][msb[decimation] - OUT_WIDTH];
+end
 
 endmodule
-
