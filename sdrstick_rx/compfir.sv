@@ -1,66 +1,56 @@
 //  All the information for a single polyphase component
 
-module compfir(
+module compfir #(ORDER = 490, COMPONENTS = 2, BASENAME = "compfir_p", COEFF_WIDTH = 27, INPUT_WIDTH = 24, OUTPUT_WIDTH = 24, ACCUM_WIDTH = 51) (
 	input clock,
 	input in_strobe,
-	input signed [23:0] in_data,
-	output logic signed [23:0] out_data,
+	input signed [INPUT_WIDTH-1:0] in_data,
+	output logic signed [OUTPUT_WIDTH-1:0] out_data,
 	output logic out_strobe
 );
 
-parameter ORDER = 254;  // This is always even
-parameter COMPONENTS = 2;
-parameter BASENAME = "compfir_p";
-parameter COEFF_WIDTH = 27;
-parameter SAMPLE_WIDTH = 24;
-
 localparam TAPS = ORDER + 1;
 
-reg signed [52:0] accum = 0;
-wire [23:0] test_data = accum[52-:24];
-
+logic signed [ACCUM_WIDTH-1:0] accum = 0;
 logic signed [23:0] in_data_reg;
 
-function logic [COMPONENTS-1:0] [31:0]  get_taps (int increment);
-	logic [COMPONENTS-1:0] [31:0]  comptaps;
-	
-	automatic int tapsleft = TAPS;
-	
-	for(int i = 0; i < COMPONENTS; ++i, tapsleft -= increment)
-		comptaps[i] = increment > tapsleft ? tapsleft : increment;
-		
-	return comptaps;
+function logic [COMPONENTS-1:0][31:0] get_taps;
+	input [31:0] increment;
+	integer j;
+	logic [31:0] tapsleft;
+	begin
+		for(j = 0, tapsleft = TAPS; j < COMPONENTS; ++j, tapsleft -= increment)
+			get_taps[j] = increment > tapsleft ? tapsleft : increment;
+	end
 endfunction
 
-localparam [COMPONENTS-1:0][31:0] COMPONENT_TAPS = get_taps($ceil(TAPS / real'(COMPONENTS)));
+localparam [COMPONENTS-1:0][31:0] COMPONENT_TAPS = get_taps(TAPS / real'(COMPONENTS));
 
-typedef struct {
-	logic do_write = 0;
-	logic [$clog2(COMPONENT_TAPS[0] / 2)-1:0] coeff_addr = 0;
-	logic [$clog2(COMPONENT_TAPS[0])-1:0] samplea_addr = 1;
-	logic [$clog2(COMPONENT_TAPS[0])-1:0] sampleb_addr = 0;
-	logic [$clog2(COMPONENT_TAPS[0])-1:0] write_addr = 0;
-} phase_inputs;
+localparam [$size(phase[0].coeff_addr)-1:0] STOP_VALUE = $size(phase[0].coeff_addr)'(COMPONENT_TAPS[0] / 2) + 1'd1;
 
-typedef struct {
-	logic signed [SAMPLE_WIDTH-1:0] samplea;
-	logic signed [SAMPLE_WIDTH-1:0] sampleb;
+struct {
+	logic do_write;
+	logic [$clog2(COMPONENT_TAPS[0] / 2)-1:0] coeff_addr;
+	logic [$clog2(COMPONENT_TAPS[0])-1:0] samplea_addr;
+	logic [$clog2(COMPONENT_TAPS[0])-1:0] sampleb_addr;
+	logic [$clog2(COMPONENT_TAPS[0])-1:0] write_addr;
+} phase[COMPONENTS] = '{default: '{do_write:0, coeff_addr:0, samplea_addr:1, sampleb_addr:0, write_addr:0}};
+
+struct {
+	logic signed [INPUT_WIDTH-1:0] samplea;
+	logic signed [INPUT_WIDTH-1:0] sampleb;
 	logic signed [COEFF_WIDTH-1:0] coeff;
-} phase_outputs;
-
-phase_inputs phase[COMPONENTS];
-phase_outputs phase_out[COMPONENTS];
+} phase_out[COMPONENTS];
 
 genvar i;
 generate
 for(i = 0; i < COMPONENTS; ++i) begin: storage
 	compfir_rom #(.filename ({ BASENAME, i + 48, ".mif" }), .depth(COMPONENT_TAPS[0] / 2), .width(COEFF_WIDTH)) coeffs (
 		.clock (clock),
-		.address (phase[i].coeff_addr),
+		.address (phase[i].coeff_addr >= COMPONENT_TAPS[0] / 2 ? '0 : phase[i].coeff_addr),
 		.coeff (phase_out[i].coeff)
 	);
 	
-	compfir_ram #(.depth (COMPONENT_TAPS[i]), .width (SAMPLE_WIDTH)) samples (
+	compfir_ram #(.depth (COMPONENT_TAPS[i]), .width (INPUT_WIDTH)) samples (
 		.clock (clock),
 		.data_a (in_data_reg),
 		.do_write (phase[i].do_write),
@@ -69,113 +59,94 @@ for(i = 0; i < COMPONENTS; ++i) begin: storage
 		.samplea_addr (phase[i].samplea_addr),
 		.samplea (phase_out[i].samplea),
 		.sampleb (phase_out[i].sampleb)
-	);
+	);	
 end
 endgenerate
 
-// XXX These may not be able to take integers when synthesized.
-task reset_addr(input int phs);
-	phase[phs].write_addr <= phase[phs].write_addr == COMPONENT_TAPS[phs] - 1'd1 ? 0 : phase[phs].write_addr + 1'd1;
-	phase[phs].samplea_addr <= phase[phs].write_addr == COMPONENT_TAPS[phs] - 2'd2 ? 0 : phase[phs].write_addr + 2'd2;
-	phase[phs].sampleb_addr <= phase[phs].write_addr == COMPONENT_TAPS[phs] - 1'd1 ? 0 : phase[phs].write_addr + 1'd1;
+enum logic [2:0] {
+	IDLE = 3'd0,
+	WRITE = 3'd1,
+	WAIT1 = 3'd2,
+	WAIT2 = 3'd3,
+	CALC = 3'd4,
+	CLKOUT = 3'd5 
+} state = IDLE;
 
-	phase[phs].coeff_addr <= 0;
-endtask
+logic [$clog2(COMPONENTS):0] current_phase = 0;
 
-task advance_addr(input int phs);
-	phase[phs].coeff_addr <= phase[phs].coeff_addr + 1'd1;
-	
-	phase[phs].samplea_addr <= phase[phs].samplea_addr == COMPONENT_TAPS[phs] - 1'd1 ? 0 : phase[phs].samplea_addr + 1'd1;
-	phase[phs].sampleb_addr <= phase[phs].sampleb_addr == 0 ? COMPONENT_TAPS[phs] - 1'd1 : phase[phs].sampleb_addr - 1'd1;
-endtask
+logic signed [INPUT_WIDTH-1:0] samplea;
+assign samplea = ((phase[current_phase].coeff_addr == STOP_VALUE) && (current_phase == COMPONENTS - 1)) ? 0 : phase_out[current_phase].samplea;
+logic signed [INPUT_WIDTH:0] sum;
+assign sum = samplea + phase_out[current_phase].sampleb;
+logic signed [INPUT_WIDTH + COEFF_WIDTH:0] product;
+assign product = sum * phase_out[current_phase].coeff;
 
-enum logic [3:0] {
-	IDLE_P1 = 0,
-	WRITE_P1 = 1,
-	WAIT1_P1 = 2,
-	WAIT2_P1 = 3,
-	CALC_P1 = 4,
-	IDLE_P2 = 5,
-	WRITE_P2 = 6,
-	WAIT1_P2 = 7,
-	WAIT2_P2 = 8,
-	CALC_P2 = 9,
-	CLKOUT = 10 
-} state = IDLE_P1;
-
-int counter = 0;
 
 always @(posedge clock) begin
 	out_strobe <= 1'b0;
 	
-	for(int j = 0; j < COMPONENTS; ++j)
-		phase[j].do_write <= 1'b0;
+	if(state > WRITE) begin
+		phase[current_phase].coeff_addr <= phase[current_phase].coeff_addr + 1'd1;
+	
+		phase[current_phase].samplea_addr <= phase[current_phase].samplea_addr == COMPONENT_TAPS[current_phase] - 1'd1 ? 0 : phase[current_phase].samplea_addr + 1'd1;
+		phase[current_phase].sampleb_addr <= phase[current_phase].sampleb_addr == 0 ? COMPONENT_TAPS[current_phase] - 1'd1 : phase[current_phase].sampleb_addr - 1'd1;
+	end
 
 	case(state)
-		IDLE_P1: begin
+		IDLE: begin
 			if(in_strobe == 1) begin
-				phase[0].do_write <= 1'b1;
+				phase[current_phase].do_write <= 1'b1;
 				in_data_reg <= in_data;
-				reset_addr(0);
-				state <= WRITE_P1;
-			end
-		end
-		WRITE_P1: begin
-			phase[0].do_write <= 0;
-			state <= WAIT1_P1;
-		end
-		WAIT1_P1: begin
-			advance_addr(0);
-			state <= WAIT2_P1;
-		end
-		WAIT2_P1: begin
-			advance_addr(0);
-			state <= CALC_P1;
-		end
-		CALC_P1: begin
-			if(phase[0].coeff_addr == $size(phase[0].coeff_addr)'($ceil(COMPONENT_TAPS[0] / 2.0)) + 1'd1)
-				state <= IDLE_P2;
 				
-			advance_addr(0);
-			accum <= ((phase_out[0].samplea + phase_out[0].sampleb) * phase_out[0].coeff) + accum;
-		end
-		IDLE_P2: begin
-			if(in_strobe == 1) begin
-				phase[1].do_write <= 1'b1;
-				in_data_reg <= in_data;
-				reset_addr(1);
-				state <= WRITE_P2;
+				case(phase[current_phase].write_addr)
+					COMPONENT_TAPS[current_phase] - 2'd2: begin
+						phase[current_phase].sampleb_addr <= COMPONENT_TAPS[current_phase] - 1'd1;
+						phase[current_phase].write_addr <= COMPONENT_TAPS[current_phase] - 1'd1;
+						phase[current_phase].samplea_addr <= 0;
+					end
+					COMPONENT_TAPS[current_phase] - 1'd1: begin
+						phase[current_phase].sampleb_addr <= 0;
+						phase[current_phase].write_addr <= 0;
+						phase[current_phase].samplea_addr <= 1'd1;
+					end
+					default: begin
+						phase[current_phase].sampleb_addr <= phase[current_phase].write_addr + 1'd1;
+						phase[current_phase].write_addr <= phase[current_phase].write_addr + 1'd1;
+						phase[current_phase].samplea_addr <= phase[current_phase].write_addr + 2'd2;
+					end
+				endcase
+				
+				phase[current_phase].coeff_addr <= 0;
+				
+				state <= WRITE;
 			end
 		end
-		WRITE_P2: begin
-			phase[1].do_write <= 0;
-			state <= WAIT1_P2;
+		WRITE: begin
+			phase[current_phase].do_write <= 0;
+			state <= WAIT1;
 		end
-		WAIT1_P2: begin
-			advance_addr(1);
-			state <= WAIT2_P2;
+		WAIT1: begin
+			state <= WAIT2;
 		end
-		WAIT2_P2: begin
-			advance_addr(1);
-			state <= CALC_P2;
+		WAIT2: begin
+			state <= CALC;
 		end
-		CALC_P2: begin
-			if(phase[1].coeff_addr == $size(phase[1].coeff_addr)'($ceil(COMPONENT_TAPS[1] / 2.0)) + 1'd1)
-				state <= CLKOUT;
+		CALC: begin
+			accum <= product + accum;
 			
-			//  XXX These probably need to wrap
-			if(phase[1].samplea_addr - 1'd1 == phase[1].sampleb_addr + 1'd1)
-				accum <= (phase_out[1].samplea * phase_out[1].coeff) + accum;
-			else
-				accum <= ((phase_out[1].samplea + phase_out[1].sampleb) * phase_out[1].coeff) + accum;
-			
-			advance_addr(1);
+			if(phase[current_phase].coeff_addr == STOP_VALUE) begin
+				state <= current_phase == COMPONENTS - 1'd1 ? CLKOUT : IDLE;
+				current_phase <= current_phase + 1'd1;				
+			end
 		end
 		CLKOUT: begin
 			out_strobe <= 1'b1;
-			out_data <= accum[46-:24] + accum[46 - 24];
+			//out_data <= accum[ACCUM_WIDTH-1-:OUTPUT_WIDTH]; // + accum[ACCUM_WIDTH - OUTPUT_WIDTH];
+			//out_data <= accum[49-:OUTPUT_WIDTH] + (accum[49] & |accum[49-OUTPUT_WIDTH-1:0]);
+			out_data <= accum[ACCUM_WIDTH-1-:OUTPUT_WIDTH] + (accum[ACCUM_WIDTH-1] & |accum[ACCUM_WIDTH-OUTPUT_WIDTH-1:0]);
 			accum <= 0;
-			state <= IDLE_P1;
+			current_phase <= 0;
+			state <= IDLE;
 		end
 	endcase
 end
@@ -192,8 +163,6 @@ module compfir_ram #(depth = 128, width = 24) (
 	output signed [width-1:0] samplea,
 	output signed [width-1:0] sampleb
 );
-
-	//parameter depth = 128;
 
 	wire [23:0] sub_wire0;
 	wire [23:0] sub_wire1;
